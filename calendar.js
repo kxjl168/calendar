@@ -3,9 +3,9 @@
         /**
         * 农历1900-2100的闰大小信息表
         * 例如：0x04bd8 相当于 0000 0100 1011 1101 1000      19位 --->  0位
-        * 第0-3位代表 是否是闰月，如果全为0代表不闰月，否则代表闰月的月份。
-        * 第15-4位代表从1月到12月是大月还是小月，大月30天，小月29天。
-        * 后4位代表的是闰月是大月还是小月 0为小1为大。
+        * 右边0-3位代表 是否是闰月，如果全为0代表不闰月，否则代表闰月的月份。
+        * 左起4-15位代表从1月到12月是大月还是小月，大月30天，小月29天。
+        * 左边4位代表的是闰月是大月还是小月 0为小1为大。
         * 2033年的数据网上流传的是0x04bd7 其实应该是0x04afb
         */
         lunarInfo: [0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2, //1900-1909
@@ -42,7 +42,7 @@
         * 天干地支之地支速查表
         */
         Zhi: ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"],
-        /*
+        /**
         * 计算天干地支季月使用
         * "甲": [2, 2]  表示 甲年的第一个月(立春)是丙寅月
         */
@@ -107,31 +107,51 @@
             "9-10": "教师节",
             "10-1": "国庆节"
         },
-        /*
+        /**
         * 返回农历Y年的天数、闰月信息和每个月的信息
+        * @returns sum 总天数
+        * @returns leapMonth [x,y]  [闰月的月份（1-12),闰月的天数（30,29）]
+        * @returns lunarMonth []  每个月的大小月信息  1,大月 30天， 0小月29天
         */
+
+        /**
+         * 
+         * @param {*} Y  年份 2010
+         */
         getLunarYearDays: function (Y) {
             var sum = 348;
             var lunarMonth = new Array();
             var leapMonth = [0, 0];
             var flag = 0;
-            var temp = 0x8000
+            var temp = 0x8000;
             for (i = 0; i < 12; i += 1) {
                 flag = (calendar.lunarInfo[Y - 1900] & temp) ? 1 : 0;
                 lunarMonth[i] = flag;
                 sum += flag;
-                temp >>= 1
+                temp >>= 1;
             }
             leapMonth = calendar.getLunarMonth(Y);
+            //calendar.getLunarMonth();
             sum += leapMonth[1];
             return {
                 sum: sum,
+                /**
+                 * [x,y]  [闰月的月份（1-12),闰月的天数（30,29）]
+                 */
                 leapMonth: leapMonth,
                 lunarMonth: lunarMonth
             };
         },
-        /*
-        * 判断今年是否有闰月  闰月是大月还是小月
+
+
+
+        /**
+        * 获取农历年的闰月信息。
+        * 判断今年是否有闰月  闰月是大月还是小月 
+        * 
+        *
+        * @param {int} Y 农历年 2019
+        * @returns [x,y]  [闰月的月份（1-12),闰月的天数（30,29）]
         */
         getLunarMonth: function (Y) {
             if (calendar.lunarInfo[Y - 1900] & 0xf) {
@@ -139,8 +159,9 @@
             }
             return [0, 0];
         },
-        /*
-        * 获取1900(1900-01-31)年春节到的Y-M-D的阳历日期
+        /**
+         * 阳历总天数
+        * 获取1900(1900-01-31)年春节到的Y-M-D的阳历日期 
         */
         gregorianCalendar: function (Y, M, D) {
             var sum = 0;
@@ -153,8 +174,11 @@
             sum += D - 1;
             return sum - 30;
         },
-        /*
-        * 获取1900年春节到的Y的阴历日期
+        /**
+         * 阴历总天数
+        * 获取1900年春节到的Y的阴历日期,月份大于才计算闰月。
+        * 比如闰5月，计算6月天数才会计算闰月数据
+        * 单独计算5月，不会计算闰月数据
         */
         lunarCalendar: function (Y, M, D) {
             var sum = 0;
@@ -169,8 +193,171 @@
             sum += D - 1;
             return sum;
         },
-        /*
+
+        /**
+         * 获取阴历月份天数，闰月天数或者普通月份天数
+         * @param {int} y 
+         * @param {int} m 
+         */
+        getlunarMonthDay:function(y,m){
+        if (demo.leapMonth[0] == M) {
+            result = 1;
+            num = demo.leapMonth[1];
+        }
+        else {
+            num = demo.lunarMonth[M - 1] == 0 ? 29 : 30;
+        }
+    },
+        /**
+       * 将阳历转换为阴历
+       * @author zj
+       * 比较阳历1970-1-31（春节）- 阴历总天数，计算对应的阴历
+       */
+        calendarConvert2: function (Y, M, D) {
+
+            var gonglidays = calendar.gregorianCalendar(Y, M, D);
+
+            var y = Y, m = M - 1, d = D, doublemonth = 0; //闰月;
+            if (m == 0) {
+                y = Y - 1;
+                m = 12;
+            }
+
+            //直接计算阴历小一个月的天数
+            var yinglidays = calendar.lunarCalendar(y, m, d);
+            //农历 天数，闰月信息，每月天数
+            var yingli_info = calendar.getLunarYearDays(y);
+
+            if (gonglidays < yinglidays) {
+
+                //相差天数
+                var offset=yinglidays-gonglidays;
+                if(d>offset) //天数足够，直接减
+                {
+                    d-=offset;
+                }
+                else if (d<offset)
+                {
+                    //减月份
+                    m=m-1;
+                    if (m == 0) {
+                        y = y - 1;
+                        m = 12;
+                        yingli_info = calendar.getLunarYearDays(y);
+                    }
+
+                    //月份天数
+                    calendar.getLunarMonth[1]
+
+
+
+                }
+                else{ 
+                    m=m-1;
+                    if (m == 0) {
+                        y = y - 1;
+                        m = 12;
+                        yingli_info = calendar.getLunarYearDays(y);
+                    }
+
+                    //是否为闰月
+                    if (yingli_info.leapMonth[0] == m) {
+                        d = yingli_info.leapMonth[1];
+                    }
+                    else {
+                        d = yingli_info.lunarMonth[m - 1] == 0 ? 29 : 30;
+                    }
+
+
+                }
+
+                
+
+            }
+            else if (gonglidays > yinglidays) {
+                y = Y - 1;
+            }
+            else {
+
+                //完全相当.
+
+               
+            }
+
+            if (m == yingli_info.leapMonth[0]) doublemonth = 1;
+
+            return [doublemonth, y, m, d];
+
+            var offset = gonglidays - yinglidays;
+
+
+
+
+
+
+
+
+
+
+
+            var num = calendar.lunarCalendar(Y, M, D) - calendar.gregorianCalendar(Y, M, D);
+            var demo = calendar.getLunarYearDays(Y);
+            var result = 0;
+            if (D > num) return [0, Y, M, (D - num)];
+            M -= 1;
+            if (M == 0) {
+                M = 12; Y -= 1;
+                demo = calendar.getLunarYearDays(Y);
+            }
+            if (M == demo.leapMonth[0]) result = 1;
+            if (D == num) return [result, Y, M, demo.lunarMonth[M - 1] == 0 ? 29 : 30];
+            if (num > D) num -= D;
+            while (true) {
+                var temp = 0;
+                if (demo.leapMonth[0] == M && result == 1) {
+                    temp = demo.leapMonth[1];
+                } else {
+                    temp = demo.lunarMonth[M - 1] == 0 ? 29 : 30;
+                }
+                if (temp > num) { num = temp - num; break; }
+                num -= temp;
+                if (num == 0) {
+                    if (demo.leapMonth[0] == M && result == 1) {
+                        num = demo.lunarMonth[M - 1] == 0 ? 29 : 30;
+                        result = 0;
+                    } else {
+                        M -= 1;
+                        if (M == 0) {
+                            M = 12; Y -= 1;
+                            demo = calendar.getLunarYearDays(Y);
+                        }
+                        if (demo.leapMonth[0] == M) {
+                            result = 1;
+                            num = demo.leapMonth[1];
+                        }
+                        else {
+                            num = demo.lunarMonth[M - 1] == 0 ? 29 : 30;
+                        }
+                    }
+                    break;
+                }
+                if (demo.leapMonth[0] == M && result == 1) result = 0;
+                else {
+                    M -= 1;
+                    if (M == 0) {
+                        Y -= 1;
+                        M = 12;
+                        demo = calendar.getLunarYearDays(Y);
+                    }
+                    if (demo.leapMonth[0] == M) result = 1;
+                }
+            }
+            return [result, Y, M, num];
+        },
+
+        /**
         * 将阳历转换为阴历
+        * 比较阳历1970-1-31（春节）- 阴历总天数，计算对应的阴历
         */
         calendarConvert: function (Y, M, D) {
             var num = calendar.lunarCalendar(Y, M, D) - calendar.gregorianCalendar(Y, M, D);
@@ -229,13 +416,13 @@
         }
     };
 
-    /* 保存今天的日期 */
+    /** 保存今天的日期 */
     var ToDay = null;
-    /* 保存点击的日期 */
+    /** 保存点击的日期 */
     var ClickDays = 0;
-    /* 休假和上班自定义配置信息 */
+    /** 休假和上班自定义配置信息 */
     var configDay = {};
-    /* 本月信息 */
+    /** 本月信息 */
     var configDayM = {};
     var isclick = false;
     /*************************主程序******************************/
@@ -262,17 +449,17 @@
     function createTable(options, e) {
         var Y = options.date.getFullYear();
         var M = options.date.getMonth() + 1;
-        /* 拷贝configDay对应本月的设置信息 */
+        /** 拷贝configDay对应本月的设置信息 */
         setconfigDayM(Y, M);
         ClickDays = options.date.getDate();
-        /* 创建时间表格 */
+        /** 创建时间表格 */
         var datetable = new DateTable(Y, M, e);
         datetable.create();
-        /* 设置样式 */
+        /** 设置样式 */
         setLayer(options, datetable.count);
-        /* 设置触发事件 */
+        /** 设置触发事件 */
         btnClick(options, e, datetable.count);
-        /* 设置单双休 */
+        /** 设置单双休 */
         if (options.week) {
             setconfigDay(options, datetable.count, setWeek(options));
         }
@@ -281,13 +468,13 @@
         $("#SM").val(M);
     }
 
-    /* 拷贝configDay对应本月的设置信息 */
+    /** 拷贝configDay对应本月的设置信息 */
     function setconfigDayM(Y, M) {
         if (configDay["Y" + Y] && configDay["Y" + Y]["M" + M]) configDayM = $.extend(true, {}, configDay["Y" + Y]["M" + M]);
         else configDayM = {};
     }
 
-    /* 设置单双休 */
+    /** 设置单双休 */
     function setWeek(options) {
         var Y = options.date.getFullYear();
         var M = options.date.getMonth() + 1;
@@ -307,7 +494,13 @@
         return JSON.parse(_configDayM);
     }
 
-    /* 设置加班休假日期 */
+
+    /**
+     * 设置加班休假日期
+     * @param {*} options 
+     * @param {*} count 
+     * @param {*} _configDayM 
+     */
     function setconfigDay(options, count, _configDayM) {
         var width = options.width;
         var height = options.height;
@@ -323,17 +516,23 @@
                 }
                 if (v == 0) {
                     $("#days" + D).append("<div class=\"xbgj\" xbgj=\"0\" style=\"position: absolute;\"><div class=\"rest\" style=\"top:" +
-            -parseInt((height - 16) / (count + 1) - 2) + "px;background-color: #53a253\">休</div></div>");
+                        -parseInt((height - 16) / (count + 1) - 2) + "px;background-color: #53a253\">休</div></div>");
                 }
                 if (v == 1) {
                     $("#days" + D).append("<div class=\"xbgj\" xbgj=\"1\" style=\"position: absolute;\"><div class=\"rest\" style=\"top:" +
-            -parseInt((height - 16) / (count + 1) - 2) + "px;background-color: #e15e5e\">班</div></div>");
+                        -parseInt((height - 16) / (count + 1) - 2) + "px;background-color: #e15e5e\">班</div></div>");
                 }
             });
         }
     }
 
-    /* 定义创建时间表格函数 */
+    /**
+     * 定义创建时间表格函数
+     * @param Y
+     * @param M
+     * @param e element
+     * 
+     *  */
     var DateTable = function (Y, M, e) {
         var temp = null;
         this.Y = Y;
@@ -347,7 +546,8 @@
         this.html = "";
     };
 
-    /* 创建表格 */
+    /** 创建表格 */
+
     DateTable.prototype.create = function () {
         this.html = "<div class=\"calendar\">";
         this.html += "<div class=\"leftArea\">";
@@ -363,13 +563,13 @@
         rightArea(this.Y, this.M);
     };
 
-    /* 获取本月多少天 */
+    /** 获取本月多少天 */
     DateTable.prototype.monthDays = function () {
         if ((this.M == 2) && (this.Y % 400 == 0 || (this.Y % 100 != 0 && this.Y % 4 == 0))) return 29;
         else return calendar.solarMonth[this.M - 1];
     }
 
-    /* 获取左边区域的头部 */
+    /** 获取左边区域的头部 */
     DateTable.prototype.leftHead = function () {
         this.html += "<div class=\"head\">";
         this.html += "<div id=\"YL\" class=\"btn\"><</div>";
@@ -387,12 +587,12 @@
         this.html += "</div>";
     };
 
-    /* 获取左边区域的星期名称 */
+    /** 获取左边区域的星期名称 */
     DateTable.prototype.leftWeek = function () {
         for (i = 0; i < 7; i++) this.html += "<div class=\"week\">" + calendar.Week[i] + "</div>";
     };
 
-    /* 获取本月天数 */
+    /** 获取本月天数 */
     DateTable.prototype.leftDay = function () {
         var day = 0;
         var W = this.W;
@@ -418,9 +618,10 @@
         return (offDate.getUTCDate());
     }
 
-    /* 获取对应的阴历日期 */
+    /** 获取对应的阴历日期 */
     DateTable.prototype.lunarDay = function () {
-        var lunar = calendar.calendarConvert(this.Y, this.M, 1);
+        //var lunar = calendar.calendarConvert(this.Y, this.M, 1);
+        var lunar = calendar.calendarConvert2(this.Y, this.M, 1);
         var info = calendar.getLunarYearDays(lunar[1]);
         var temp = "";
         var flag = 0;
@@ -449,32 +650,38 @@
             } else if (solarTerms !== "") {
                 $("#lunar" + (i + 1)).css("color", "green");
             }
+
+
             // 计算下个日期的农历
-            if (info.leapMonth[0] === lunar[2] && lunar[0] == 1) { flag = info.leapMonth[1]; }
-            else flag = info.lunarMonth[lunar[2] - 1] === 0 ? 29 : 30;
-            if (lunar[3] + 1 > flag) {
-                lunar[3] = 1;
-                if (lunar[2] !== info.leapMonth[0]) {
-                    if (lunar[2] + 1 > 12) {
-                        lunar[1] += 1;
-                        lunar[2] = 1;
-                        info = calendar.getLunarYearDays(lunar[1]);
-                    } else lunar[2] += 1;
-                }
-                else {
-                    if (lunar[0] === 1) {
-                        if (lunar[2] + 1 > 12) {
-                            lunar[1] += 1;
-                            lunar[2] = 1;
-                            info = calendar.getLunarYearDays(lunar[1]);
-                        } else {
-                            lunar[2] += 1;
-                            lunar[0] = 0;
-                        }
-                    }
-                    else { lunar[0] = 1; }
-                }
-            } else { lunar[3] += 1; }
+
+            lunar = calendar.calendarConvert2(this.Y, this.M, i + 2);
+            /**
+                        if (info.leapMonth[0] === lunar[2] && lunar[0] == 1) { flag = info.leapMonth[1]; }
+                        else flag = info.lunarMonth[lunar[2] - 1] === 0 ? 29 : 30;
+                        if (lunar[3] + 1 > flag) {
+                            lunar[3] = 1;
+                            if (lunar[2] !== info.leapMonth[0]) {
+                                if (lunar[2] + 1 > 12) {
+                                    lunar[1] += 1;
+                                    lunar[2] = 1;
+                                    info = calendar.getLunarYearDays(lunar[1]);
+                                } else lunar[2] += 1;
+                            }
+                            else {
+                                if (lunar[0] === 1) {
+                                    if (lunar[2] + 1 > 12) {
+                                        lunar[1] += 1;
+                                        lunar[2] = 1;
+                                        info = calendar.getLunarYearDays(lunar[1]);
+                                    } else {
+                                        lunar[2] += 1;
+                                        lunar[0] = 0;
+                                    }
+                                }
+                                else { lunar[0] = 1; }
+                            }
+                        } else { lunar[3] += 1; }
+                        */
         }
     };
 
@@ -603,7 +810,7 @@
                 delete configDayM["D" + D];
             }
             $(e).append("<div class=\"xbgj\" xbgj=\"0\" style=\"position: absolute;\"><div class=\"rest\" style=\"top:" +
-            -parseInt((height - 16) / (count + 1) - 2) + "px;background-color: #53a253\">休</div></div>");
+                -parseInt((height - 16) / (count + 1) - 2) + "px;background-color: #53a253\">休</div></div>");
             configDayM["D" + D] = 0;
             $(".dayRightClick").remove();
         });
@@ -619,7 +826,7 @@
                 delete configDayM["D" + D];
             }
             $(e).append("<div class=\"xbgj\" xbgj=\"1\" style=\"position: absolute;\"><div class=\"rest\" style=\"top:" +
-            -parseInt((height - 16) / (count + 1) - 2) + "px;background-color: #e15e5e\">班</div></div>");
+                -parseInt((height - 16) / (count + 1) - 2) + "px;background-color: #e15e5e\">班</div></div>");
             configDayM["D" + D] = 1;
             $(".dayRightClick").remove();
         });
@@ -724,6 +931,15 @@
         options.date = new Date(Y + "/" + M + "/" + ClickDays);
         createTable(options, e);
     }
+
+    /**
+     * @author d
+     * @param {int} D
+     */
+    function testss(D) {
+
+    }
+
     // 设置表格样式
     function setLayer(options, count) {
         var width = options.width;
