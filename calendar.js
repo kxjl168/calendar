@@ -199,15 +199,19 @@
          * @param {int} y 
          * @param {int} m 
          */
-        getlunarMonthDay:function(y,m){
-        if (demo.leapMonth[0] == M) {
-            result = 1;
-            num = demo.leapMonth[1];
-        }
-        else {
-            num = demo.lunarMonth[M - 1] == 0 ? 29 : 30;
-        }
-    },
+        getlunarMonthDay: function (y, m) {
+            var yingli_info = calendar.getLunarYearDays(y);
+            if (yingli_info.leapMonth[0] == m) {
+                result = 1;
+                num = yingli_info.leapMonth[1];
+            }
+            else {
+                num = yingli_info.lunarMonth[m - 1] == 0 ? 29 : 30;
+            }
+
+            return num;
+
+        },
         /**
        * 将阳历转换为阴历
        * @author zj
@@ -217,7 +221,7 @@
 
             var gonglidays = calendar.gregorianCalendar(Y, M, D);
 
-            var y = Y, m = M - 1, d = D, doublemonth = 0; //闰月;
+            var y = Y, m = M, d = D, doublemonth = 0; //闰月;
             if (m == 0) {
                 y = Y - 1;
                 m = 12;
@@ -228,74 +232,117 @@
             //农历 天数，闰月信息，每月天数
             var yingli_info = calendar.getLunarYearDays(y);
 
-            if (gonglidays < yinglidays) {
 
-                //相差天数
-                var offset=yinglidays-gonglidays;
-                if(d>offset) //天数足够，直接减
-                {
-                    d-=offset;
-                }
-                else if (d<offset)
-                {
-                    //减月份
-                    m=m-1;
-                    if (m == 0) {
-                        y = y - 1;
-                        m = 12;
-                        yingli_info = calendar.getLunarYearDays(y);
-                    }
-
-                    //月份天数
-                    calendar.getLunarMonth[1]
-
-
-
-                }
-                else{ 
-                    m=m-1;
-                    if (m == 0) {
-                        y = y - 1;
-                        m = 12;
-                        yingli_info = calendar.getLunarYearDays(y);
-                    }
-
-                    //是否为闰月
-                    if (yingli_info.leapMonth[0] == m) {
-                        d = yingli_info.leapMonth[1];
-                    }
-                    else {
-                        d = yingli_info.lunarMonth[m - 1] == 0 ? 29 : 30;
-                    }
-
-
-                }
-
-                
-
+            //相差天数
+            var offset = yinglidays - gonglidays;
+            if (d > offset) //天数足够，直接减
+            {
+                d -= offset;
             }
-            else if (gonglidays > yinglidays) {
-                y = Y - 1;
+            else if (d < offset) {
+                //计算减月份 天数
+
+                var tempoffset = d;//可减天数
+
+                //减月份
+                m = m - 1;
+                if (m == 0) {
+                    y = y - 1;
+                    m = 12;
+                    yingli_info = calendar.getLunarYearDays(y);
+                }
+
+                //如果为闰月，是闰的那个月的天数
+                tempoffset += calendar.getlunarMonthDay(y, m);
+                if (m == yingli_info.leapMonth[0]) doublemonth = 1;  //当前闰月
+
+                if (offset <= tempoffset)
+                {
+                    //d 日期去顶
+                    d = tempoffset - offset;
+                }
+                else { //一个月不够，继续减
+
+
+                    while (true) {
+
+
+
+
+                        //是否为闰月，
+                        if (yingli_info.leapMonth[0] == m && doublemonth == 1) {
+                            //如果为闰月，是闰的那个月的天数
+                            //tempoffset += calendar.getlunarMonthDay(y, m);
+                            //闰月的正常月份的天数
+                            tempoffset += yingli_info.lunarMonth[m - 1] == 0 ? 29 : 30;
+
+                            //tempoffset += yingli_info.leapMonth[1] ;
+                            doublemonth = 0; //当前闰月
+                        }
+                        else {
+
+                        
+
+                                //减月份
+                                m = m - 1;
+                                if (m == 0) {
+                                    y = y - 1;
+                                    m = 12;
+                                    yingli_info = calendar.getLunarYearDays(y);
+                                }
+
+                                //如果为闰月，是闰的那个月的天数
+                                tempoffset += calendar.getlunarMonthDay(y, m);
+                                if (m == yingli_info.leapMonth[0]) doublemonth = 1;  //当前闰月
+                          
+                        }
+
+                        if (tempoffset < offset)//一个月不够，继续减
+                            continue;
+                        else {
+                            //m月份确定
+                            //doublemonth 闰月确定
+
+                            //d 日期去顶
+                            d = tempoffset - offset;
+                            break;
+                        }
+                    }
+                }
+
+
+
             }
             else {
 
-                //完全相当.
+                //是否为闰月
+                if (yingli_info.leapMonth[0] == m) {
+                    //农历天数计算，>闰月才计算闰月，此处天数没有计算闰月，下方减的为普通月份数据
 
-               
+                    //闰月的正常月份的天数
+                    d = yingli_info.lunarMonth[m - 1] == 0 ? 29 : 30;
+                    doublemonth = 0; //前一个月
+                }
+                else {
+                    //减月份
+                    m = m - 1;
+                    if (m == 0) {
+                        y = y - 1;
+                        m = 12;
+                        yingli_info = calendar.getLunarYearDays(y);
+                    }
+
+                    //如果为闰月，是闰的那个月的天数，此处为闰月数据
+                    d = calendar.getlunarMonthDay(y, m);
+
+                    if (m == yingli_info.leapMonth[0]) doublemonth = 1;
+                }
+
+
             }
 
-            if (m == yingli_info.leapMonth[0]) doublemonth = 1;
 
             return [doublemonth, y, m, d];
-
-            var offset = gonglidays - yinglidays;
-
-
-
-
-
-
-
 
 
 
